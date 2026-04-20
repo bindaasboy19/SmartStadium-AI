@@ -1,0 +1,126 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 3. Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'csk1916313@gmail.com'
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity Validations
+    function isValidZone(data) {
+      return data.keys().hasAll(['name', 'density', 'currentCount', 'capacity'])
+        && data.name is string && data.name.size() <= 64
+        && data.density is number && data.density >= 0 && data.density <= 1.2
+        && data.currentCount is int && data.capacity is int
+        && (!data.keys().contains('color') || data.color is string);
+    }
+
+    function isValidStall(data) {
+      return data.keys().hasAll(['name', 'type', 'location', 'queueSize', 'serviceRate'])
+        && data.name is string && data.name.size() <= 64
+        && data.type in ['food', 'gate', 'exit', 'restroom']
+        && data.location is map && data.location.lat is number && data.location.lng is number
+        && data.queueSize is int && data.serviceRate is number;
+    }
+
+    function isValidAlert(data) {
+      return data.keys().hasAll(['message', 'type', 'active'])
+        && data.message is string && data.message.size() <= 500
+        && data.type in ['info', 'warning', 'emergency']
+        && data.active is bool;
+    }
+
+    function isValidSystemState(data) {
+      return data.keys().hasAll(['emergencyMode'])
+        && data.emergencyMode is bool
+        && (!data.keys().contains('evacuationMessage') || (data.evacuationMessage is string && data.evacuationMessage.size() <= 1000));
+    }
+
+    function isValidStaff(data) {
+      return data.keys().hasAll(['name', 'role', 'location', 'status'])
+        && data.name is string && data.role is string
+        && data.location is map && data.location.lat is number && data.location.lng is number
+        && data.status in ['on-duty', 'responding', 'break'];
+    }
+
+    // 1. Zones
+    match /zones/{zoneId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidId(zoneId) && (
+        (request.method == 'create' && isValidZone(incoming())) ||
+        (request.method == 'update' && isValidZone(incoming())) ||
+        (request.method == 'delete')
+      );
+    }
+
+    // 2. Stalls
+    match /stalls/{stallId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidId(stallId) && (
+        (request.method == 'create' && isValidStall(incoming())) ||
+        (request.method == 'update' && isValidStall(incoming())) ||
+        (request.method == 'delete')
+      );
+    }
+
+    // 3. Alerts
+    match /alerts/{alertId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidId(alertId) && (
+        (request.method == 'create' && isValidAlert(incoming())) ||
+        (request.method == 'update' && isValidAlert(incoming())) ||
+        (request.method == 'delete')
+      );
+    }
+
+    // 4. Admins (Collection to identify roles)
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Only manageable via console or service account
+    }
+
+    // 5. System State
+    match /system/state {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidSystemState(incoming());
+    }
+
+    // 6. Staff
+    match /staff/{staffId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidId(staffId) && (
+        (request.method == 'create' && isValidStaff(incoming())) ||
+        (request.method == 'update' && isValidStaff(incoming())) ||
+        (request.method == 'delete')
+      );
+    }
+  }
+}

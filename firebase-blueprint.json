@@ -1,0 +1,99 @@
+{
+  "entities": {
+    "Zone": {
+      "title": "Zone",
+      "description": "A specific area in the stadium.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "density": { "type": "number", "description": "0 to 1 scale" },
+        "currentCount": { "type": "integer" },
+        "capacity": { "type": "integer" },
+        "color": { "type": "string" }
+      },
+      "required": ["name", "density", "currentCount", "capacity"]
+    },
+    "SystemState": {
+      "title": "SystemState",
+      "description": "Global stadium operational state.",
+      "type": "object",
+      "properties": {
+        "emergencyMode": { "type": "boolean" },
+        "evacuationMessage": { "type": "string" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      },
+      "required": ["emergencyMode"]
+    },
+    "Stall": {
+      "title": "Stall",
+      "description": "A food stall, gate, or exit.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["food", "gate", "exit", "restroom"] },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "queueSize": { "type": "integer" },
+        "serviceRate": { "type": "number", "description": "People per minute" }
+      },
+      "required": ["name", "type", "location", "queueSize", "serviceRate"]
+    },
+    "Alert": {
+      "title": "Alert",
+      "description": "Real-time notification for attendees.",
+      "type": "object",
+      "properties": {
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "warning", "emergency"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["message", "type", "active"]
+    },
+    "Staff": {
+      "title": "Staff",
+      "description": "Stadium personnel location and status.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "status": { "type": "string", "enum": ["on-duty", "responding", "break"] }
+      },
+      "required": ["name", "role", "location", "status"]
+    }
+  },
+  "firestore": {
+    "/zones/{zoneId}": {
+      "schema": "Zone",
+      "description": "Stadium crowd density zones"
+    },
+    "/stalls/{stallId}": {
+      "schema": "Stall",
+      "description": "Point of interest locations"
+    },
+    "/alerts/{alertId}": {
+      "schema": "Alert",
+      "description": "Broadcast alerts"
+    },
+    "/system/state": {
+      "schema": "SystemState",
+      "description": "Global operational status"
+    },
+    "/staff/{staffId}": {
+      "schema": "Staff",
+      "description": "Personnel locations"
+    }
+  }
+}
